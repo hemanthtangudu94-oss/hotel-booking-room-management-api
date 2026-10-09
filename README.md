@@ -2,6 +2,20 @@
 
 A REST API built with FastAPI and SQLite for managing hotel rooms, bookings, payments, users, and audit logs.
 
+## API Documentation
+
+Interactive API documentation is available through Swagger UI.
+
+### Swagger UI Overview
+
+![Swagger UI Overview](screenshots/swagger_overview.png)
+
+### API Endpoints
+
+![API Endpoints](screenshots/swagger_endpoints.png)
+
+Run the application locally and open `http://127.0.0.1:8000/docs` to explore and test the API endpoints.
+
 ## Features
 
 - User registration and login with JWT authentication
