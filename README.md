@@ -1,10 +1,12 @@
 # Hotel Booking & Room Management API
 
-A REST API built with FastAPI and SQLite for managing hotel rooms, bookings, payments, users, and audit logs.
+A RESTful API built with **FastAPI, SQLAlchemy, and SQLite** for managing hotel rooms, room types, bookings, payments, users, and audit logs.
+
+The project includes JWT authentication, role-based access control, database migrations, transaction safety, and automated tests.
 
 ## API Documentation
 
-Interactive API documentation is available through Swagger UI.
+The application provides interactive API documentation through Swagger UI and ReDoc.
 
 ### Swagger UI Overview
 
@@ -14,41 +16,59 @@ Interactive API documentation is available through Swagger UI.
 
 ![API Endpoints](screenshots/swagger_endpoints.png)
 
-Run the application locally and open `http://127.0.0.1:8000/docs` to explore and test the API endpoints.
+Start the application locally and open:
+
+- **Swagger UI:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **ReDoc:** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ## Features
 
 - User registration and login with JWT authentication
-- Password hashing with Passlib and bcrypt
+- Password hashing using Passlib and bcrypt
 - Role-based access control for administrative endpoints
-- Room type and room management
+- Room type creation and management
+- Room creation, listing, filtering, pagination, and sorting
 - Booking creation, listing, and cancellation
-- Prevention of overlapping confirmed bookings for the same room
+- Validation to prevent overlapping confirmed bookings for the same room
 - Payment creation and payment history
-- Audit logging for booking and payment actions
-- SQLite database with SQLAlchemy
+- Decimal-based monetary fields for room prices, booking totals, and payments
+- Audit logging for booking and payment operations
+- Transaction rollback when booking or payment audit logging fails
+- Validation of role assignments and duplicate role assignments
+- SQLite database with SQLAlchemy ORM
 - Database schema migrations using Alembic
-- Interactive API documentation with Swagger UI
-- Automated tests using pytest
+- Interactive API documentation using Swagger UI and ReDoc
+- Automated testing using pytest
 
 ## Technology Stack
 
-- Python
-- FastAPI
-- SQLAlchemy
-- SQLite
-- Alembic
-- Pydantic
-- JWT and OAuth2
-- Passlib and bcrypt
-- pytest
+| Technology | Purpose |
+|---|---|
+| Python | Backend programming language |
+| FastAPI | REST API framework |
+| SQLAlchemy | Database ORM |
+| SQLite | Relational database |
+| Alembic | Database migrations |
+| Pydantic | Request validation and response schemas |
+| JWT and OAuth2 | Authentication and token-based authorization |
+| Passlib and bcrypt | Password hashing |
+| pytest | Automated testing |
+| Uvicorn | ASGI application server |
 
 ## Project Structure
 
 ```text
 Hotel_Booking_API/
 ├── app/
-│   ├── api/routes/
+│   ├── api/
+│   │   └── routes/
+│   │       ├── admin.py
+│   │       ├── audit_logs.py
+│   │       ├── auth.py
+│   │       ├── bookings.py
+│   │       ├── payments.py
+│   │       ├── room_types.py
+│   │       └── rooms.py
 │   ├── core/
 │   ├── db/
 │   ├── models/
@@ -58,84 +78,129 @@ Hotel_Booking_API/
 ├── alembic/
 │   └── versions/
 ├── tests/
-├── README.md
+├── screenshots/
+├── .env
 ├── .gitignore
 ├── alembic.ini
-└── requirements.txt
+├── requirements.txt
+└── README.md
 ```
 
-## Setup
+**Note:** The `.env` file is local configuration and should not be committed to version control. The structure above summarizes the main application directories and files.
 
-### 1. Create and activate a virtual environment
+## Setup and Installation
 
-Windows PowerShell:
+### Prerequisites
+
+- Python 3.13 or a compatible Python version
+- Git
+- A terminal such as Windows PowerShell
+
+### 1. Clone the repository
+
+```powershell
+git clone https://github.com/hemanthtangudu94-oss/hotel-booking-room-management-api.git
+cd hotel-booking-room-management-api
+```
+
+### 2. Create and activate a virtual environment
+
+On Windows PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### 2. Install dependencies
+### 3. Install dependencies
 
 ```powershell
 python -m pip install -r requirements.txt
 ```
 
-### 3. Configure environment variables
+### 4. Configure environment variables
 
-Create a `.env` file in the project root with the following settings:
+Create a `.env` file in the project root:
 
 ```dotenv
-SECRET_KEY=replace_with_a_strong_random_secret_at_least_32_characters
+SECRET_KEY=replace_with_a_strong_random_secret
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-Generate your own strong, random secret key. Keep it private and never commit `.env` to version control. The application requires `SECRET_KEY`; the other settings have defaults in `app/core/config.py`.
+Generate a strong, random secret key for your environment. Keep it private, and never commit `.env` or real credentials to a public repository.
 
+The application uses `SECRET_KEY` for token signing. The other settings have defaults in the application configuration.
 
-### 4. Apply database migrations
+### 5. Apply database migrations
 
 ```powershell
 alembic upgrade head
 ```
 
-### 5. Start the API
+### 6. Start the API
 
 ```powershell
 uvicorn app.main:app --reload
 ```
 
-### 6. Open the API documentation
-
-- Swagger UI: http://127.0.0.1:8000/docs
-- ReDoc: http://127.0.0.1:8000/redoc
-
+Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to explore and test the endpoints.
 
 ## Running Tests
 
-Run the automated test suite:
+Run the complete automated test suite from the project root:
 
 ```powershell
 pytest -v
 ```
 
-**Verified test status:** 37 tests passed in the development environment.
+**Latest verified test result:** 42 tests passed.
 
+The test suite covers authentication, role-based access, room operations, booking operations, payment validation, audit logging, and transaction rollback scenarios.
 
 ## Authentication
 
-1. Register through `POST /auth/register`.
-2. Log in through `POST /auth/login` using the OAuth2 form fields `username` and `password`.
-3. Copy the returned access token.
-4. In Swagger UI, click **Authorize** and authenticate using the OAuth2 password flow.
-5. Call protected endpoints according to the user's assigned role.
+1. Register a user using `POST /auth/register`.
+2. Log in using `POST /auth/login`.
+3. Submit the `username` and `password` fields using the OAuth2 form format.
+4. Copy the returned access token.
+5. In Swagger UI, click **Authorize** and authenticate using the configured OAuth2 password flow.
+6. Call protected endpoints using an account with the appropriate permissions.
+
+Administrative endpoints require the `ADMIN` role.
+
+## API Endpoint Overview
+
+| Area | Endpoint | Method |
+|---|---|---|
+| Authentication | `/auth/register` | POST |
+| Authentication | `/auth/login` | POST |
+| Administration | `/admin/test` | GET |
+| Room types | `/room-types/` | POST |
+| Rooms | `/rooms/` | POST |
+| Rooms | `/rooms/` | GET |
+| Bookings | `/bookings/` | POST |
+| Bookings | `/bookings/` | GET |
+| Bookings | `/bookings/{booking_id}/cancel` | PATCH |
+| Payments | `/payments/` | POST |
+| Payments | `/payments/` | GET |
+| Audit logs | `/audit-logs/` | GET |
+
+See Swagger UI for request schemas, query parameters, authentication requirements, and response formats.
+
+## Reliability and Data Integrity
+
+- Booking and payment operations validate business rules before committing changes.
+- Monetary values use decimal-compatible database fields.
+- Booking and payment audit records are written within the corresponding database transaction.
+- Failed transactional operations roll back database changes.
+- Room listing supports validated sorting, filtering, and pagination.
+- Role assignment checks for missing users and duplicate assignments.
 
 ## Important Notes
 
 - The default database configuration uses SQLite.
-- Administrative endpoints require the `ADMIN` role.
-- Users can access their own bookings and payments.
-- Booking and payment operations include business-rule validation.
-- Payment creation and payment audit logging are committed in a single database transaction.
-- Never commit secrets, virtual environments, or local database files to a public repository.
+- Users can access their own bookings and payments, subject to the implemented authorization rules.
+- Administrative operations require the appropriate role.
+- The `.env` file, virtual environment, and local database files should not be committed to a public repository.
+- This project is a backend API; a separate frontend is not included in the documented structure.
