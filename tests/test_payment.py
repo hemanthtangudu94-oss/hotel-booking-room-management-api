@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from decimal import Decimal
 
 def test_create_payment(client):
     # Register user
@@ -59,7 +60,7 @@ def test_create_payment(client):
     data = response.json()
 
     assert data["booking_id"] == booking["id"]
-    assert data["amount"] == 7000
+    assert Decimal(data["amount"]) == Decimal("7000.00")
     assert data["status"] == "PAID"
     assert data["payment_method"] == "CARD"
     assert data["paid_at"] is not None
@@ -329,7 +330,7 @@ def test_get_payments(client):
 
     assert len(data) == 1
     assert data[0]["booking_id"] == booking["id"]
-    assert data[0]["amount"] == 7000
+    assert Decimal(data[0]["amount"]) == Decimal("7000.00")
     assert data[0]["status"] == "PAID"
 
 def test_database_prevents_duplicate_paid_payments(client, db):

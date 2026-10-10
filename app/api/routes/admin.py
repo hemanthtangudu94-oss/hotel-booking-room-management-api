@@ -11,7 +11,7 @@ router = APIRouter(
 @router.get("/test")
 def admin_test(
     current_user: User = Depends(require_role("ADMIN"))
-):
+) -> dict[str, str]:
     return{
         "message": "Admin access granted",
         "username": current_user.username

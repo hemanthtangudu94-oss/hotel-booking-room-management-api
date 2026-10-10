@@ -1,5 +1,8 @@
+from decimal import Decimal
+
 from sqlalchemy import Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 
 from app.db.database import Base
 
@@ -14,5 +17,5 @@ class RoomType(Base):
 
     capacity: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    price_per_night: Mapped[float] = mapped_column(Numeric(10, 2),nullable=False)
+    price_per_night: Mapped[Decimal] = mapped_column(Numeric(10, 2),nullable=False)
     

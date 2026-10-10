@@ -89,3 +89,46 @@ def test_admin_with_role(client, db):
 
     assert data["message"] == "Admin access granted"
     assert data["username"] == "testadmin"
+
+
+def test_assign_role_invalid_user(db):
+    import pytest
+
+    with pytest.raises(ValueError, match="User not found"):
+        assign_role(
+            db=db,
+            user_id=999999,
+            role_name="ADMIN"
+        )
+
+
+def test_assign_duplicate_role(client, db):
+    import pytest
+
+    # Register a user
+    response = client.post(
+        "/auth/register",
+        json={
+            "username": "duplicateroleuser",
+            "email": "duplicaterole@example.com",
+            "password": "testpassword",
+            "full_name": "Duplicate Role User"
+        }
+    )
+    assert response.status_code == 201
+
+    user = db.query(User).filter(
+        User.username == "duplicateroleuser"
+    ).first()
+
+    assert user is not None
+
+    # First assignment should succeed
+    assign_role(db, user.id, "ADMIN")
+
+    # Second assignment should be rejected
+    with pytest.raises(
+        ValueError,
+        match="User already has this role"
+    ):
+        assign_role(db, user.id, "ADMIN")

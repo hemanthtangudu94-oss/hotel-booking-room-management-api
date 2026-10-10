@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from decimal import Decimal
+
 from sqlalchemy import DateTime, ForeignKey, Numeric, String, Index
 
 from sqlalchemy.orm import Mapped, mapped_column
@@ -13,7 +15,7 @@ class Payment(Base):
 
     booking_id: Mapped[int] = mapped_column(ForeignKey("bookings.id"),nullable=False)
 
-    amount: Mapped[float] = mapped_column(Numeric(10,2),nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(10,2),nullable=False)
 
     status: Mapped[str] = mapped_column(String(20),default="PENDING", nullable=False)
 

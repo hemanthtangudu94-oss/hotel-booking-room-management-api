@@ -1,3 +1,9 @@
+from decimal import Decimal
+
+from unittest.mock import patch
+
+from app.services import booking_service
+
 def test_create_booking(client):
     # Register user
     client.post(
@@ -42,7 +48,7 @@ def test_create_booking(client):
     assert data["check_in"] == "2026-12-01"
     assert data["check_out"] == "2026-12-03"
     assert data["status"] == "CONFIRMED"
-    assert data["total_amount"] == 7000
+    assert Decimal(data["total_amount"]) == Decimal("7000.00")
 
 def test_overlapping_booking(client):
     # Register user
@@ -358,4 +364,122 @@ def test_cancel_already_cancelled_booking(client):
     data = response.json()
 
     assert data["detail"] == "Booking cannot be cancelled"
-    
+
+
+def test_create_booking_rolls_back_if_audit_fails(client, db):
+    # Register user
+    client.post(
+        "/auth/register",
+        json={
+            "username": "auditfailuser",
+            "email": "auditfailuser@example.com",
+            "password": "testpassword",
+            "full_name": "Audit Fail User"
+        }
+    )
+
+    # Login
+    login_response = client.post(
+        "/auth/login",
+        data={
+            "username": "auditfailuser",
+            "password": "testpassword"
+        }
+    )
+
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    # Make audit-log creation fail
+    with patch.object(
+        booking_service,
+        "create_audit_log",
+        side_effect=RuntimeError("Simulated audit failure")
+    ):
+        response = client.post(
+            "/bookings/",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "room_id": 1,
+                "check_in": "2027-08-10",
+                "check_out": "2027-08-12"
+            }
+        )
+
+    assert response.status_code == 500
+
+    # Confirm the booking was not saved
+    from app.models.booking import Booking
+
+    booking = db.query(Booking).filter(
+        Booking.check_in == "2027-08-10",
+        Booking.check_out == "2027-08-12"
+    ).first()
+
+    assert booking is None
+
+
+def test_cancel_booking_rolls_back_if_audit_fails(client, db):
+    from unittest.mock import patch
+    from app.models.booking import Booking
+    from app.services import booking_service
+
+    # Register user
+    client.post(
+        "/auth/register",
+        json={
+            "username": "cancelaudituser",
+            "email": "cancelaudituser@example.com",
+            "password": "testpassword",
+            "full_name": "Cancel Audit User"
+        }
+    )
+
+    # Login
+    login_response = client.post(
+        "/auth/login",
+        data={
+            "username": "cancelaudituser",
+            "password": "testpassword"
+        }
+    )
+    assert login_response.status_code == 200
+
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create a booking
+    booking_response = client.post(
+        "/bookings/",
+        headers=headers,
+        json={
+            "room_id": 1,
+            "check_in": "2027-09-10",
+            "check_out": "2027-09-12"
+        }
+    )
+    assert booking_response.status_code == 201
+
+    booking_id = booking_response.json()["id"]
+
+    # Fail audit logging during cancellation
+    with patch.object(
+        booking_service,
+        "create_audit_log",
+        side_effect=RuntimeError("Simulated audit failure")
+    ):
+        response = client.patch(
+            f"/bookings/{booking_id}/cancel",
+            headers=headers
+        )
+
+    assert response.status_code == 500
+
+    # Verify cancellation was rolled back
+    db.expire_all()
+    booking = db.query(Booking).filter(
+        Booking.id == booking_id
+    ).first()
+
+    assert booking is not None
+    assert booking.status == "CONFIRMED"

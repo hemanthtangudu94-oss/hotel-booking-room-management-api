@@ -1,7 +1,8 @@
 import logging
 
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 
 from app.models.booking import Booking
 from app.models.room import Room
@@ -57,7 +58,7 @@ def create_booking(
     number_of_nights = (booking_data.check_out - booking_data.check_in).days
 
     #calculate total amount
-    total_amount = number_of_nights * room_type.price_per_night
+    total_amount = Decimal(number_of_nights) * room_type.price_per_night
 
     #create booking
     booking = Booking(
@@ -72,20 +73,24 @@ def create_booking(
     db.add(booking)
 
     try:
+        db.flush()
+
+        create_audit_log(
+            db=db,
+            user_id=user_id,
+            action="CREATE",
+            entity="Booking",
+            entity_id=booking.id,
+            new_value=f"Booking created for room { booking.room_id}",
+            commit=False
+        )
         db.commit()
         db.refresh(booking)
-    except IntegrityError:
-        db.rollback()
-        raise ValueError("Unable to create booking")
 
-    create_audit_log(
-        db=db,
-        user_id=user_id,
-        action="CREATE",
-        entity="Booking",
-        entity_id=booking.id,
-        new_value=f"Booking created for room {booking.room_id}"
-    )
+    except Exception:
+        db.rollback()
+        raise
+
 
     logger.info(
         "Booking created | user_id=%s | booking_id=%s | room_id=%s",
@@ -147,21 +152,25 @@ def cancel_booking(
     booking.status = "CANCELLED"
     
     try:
+
+        db.flush()
+        create_audit_log(
+            db=db,
+            user_id=user_id,
+            action="CANCEL",
+            entity="Booking",
+            entity_id=booking.id,
+            old_value=old_status,
+            new_value="CANCELLED",
+            commit=False
+        )
+
         db.commit()
         db.refresh(booking)
-    except IntegrityError:
+    except Exception:
         db.rollback()
-        raise ValueError("Unable to cancel booking")
+        raise
 
-    create_audit_log(
-        db=db,
-        user_id=user_id,
-        action="CANCEL",
-        entity="Booking",
-        entity_id=booking.id,
-        old_value=old_status,
-        new_value="CANCELLED"
-    )
 
     logger.info(
         "Booking cancelled | user_id=%s | booking_id=%s",

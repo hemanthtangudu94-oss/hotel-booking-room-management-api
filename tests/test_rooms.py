@@ -388,4 +388,16 @@ def test_get_rooms_invalid_sort_field(client, db):
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid sort field"
+    assert response.json()["detail"].startswith("Invalid sort field")
+
+
+def test_get_rooms_invalid_sort_order(client, db):
+    headers = get_admin_headers(client, db)
+
+    response = client.get(
+        "/rooms/?sort_by=room_number&sort_order=random",
+        headers=headers
+    )
+
+    assert response.status_code == 400
+    assert "Invalid sort order" in response.json()["detail"]

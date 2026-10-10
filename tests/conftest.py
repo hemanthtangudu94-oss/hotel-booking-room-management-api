@@ -25,52 +25,63 @@ TestingSessionLocal = sessionmaker(
 )
 
 
+
 @pytest.fixture
 def db():
-    Base.metadata.create_all(bind=engine)
-
-    db = TestingSessionLocal()
-
-    # Create test room type
-    room_type = RoomType(
-        name="Deluxe",
-        description="Test Deluxe Room",
-        capacity=2,
-        price_per_night=3500
-    )
-
-    db.add(room_type)
-    db.commit()
-    db.refresh(room_type)
-
-    # Create test room
-    room = Room(
-        room_number="101",
-        room_type_id=room_type.id,
-        floor=1,
-        status="AVAILABLE"
-    )
-
-    db.add(room)
-    db.commit()
-    db.refresh(room)
+    db = None
 
     try:
+        Base.metadata.create_all(bind=engine)
+        db = TestingSessionLocal()
+
+        # Create test room type
+        room_type = RoomType(
+            name="Deluxe",
+            description="Test Deluxe Room",
+            capacity=2,
+            price_per_night=3500
+        )
+
+        db.add(room_type)
+        db.commit()
+        db.refresh(room_type)
+
+        # Create test room
+        room = Room(
+            room_number="101",
+            room_type_id=room_type.id,
+            floor=1,
+            status="AVAILABLE"
+        )
+
+        db.add(room)
+        db.commit()
+        db.refresh(room)
+
         yield db
+
     finally:
-        db.close()
+        if db is not None:
+            db.close()
+
         Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture
 def client(db):
+    previous_overrides = app.dependency_overrides.copy()
 
     def override_get_db():
         yield db
 
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
-        yield test_client
-
-    app.dependency_overrides.clear()
+    try:
+        with TestClient(
+            app,
+            raise_server_exceptions=False
+        ) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)

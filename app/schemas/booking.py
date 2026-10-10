@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,7 +18,7 @@ class BookingResponse(BaseModel):
     check_in: date
     check_out: date
     status: str
-    total_amount: float
+    total_amount: Decimal
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

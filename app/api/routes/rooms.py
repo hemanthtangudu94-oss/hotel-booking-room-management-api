@@ -32,7 +32,7 @@ def create_room_endpoint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
-        )
+        ) from e
 
 @router.get("/", response_model=list[RoomResponse])
 def get_rooms_endpoint(
@@ -51,4 +51,4 @@ def get_rooms_endpoint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
-        )
+        ) from e

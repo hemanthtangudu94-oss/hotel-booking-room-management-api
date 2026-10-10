@@ -72,17 +72,29 @@ def get_rooms(
         query = query.filter(Room.status == room_status)
 
     # Sorting
-    sort_column = getattr(Room, sort_by, None)
+    allowed_sort_fields = {
+        "room_number": Room.room_number,
+        "floor": Room.floor,
+        "status": Room.status,
+        "room_type_id": Room.room_type_id,
+    }
+
+    sort_column = allowed_sort_fields.get(sort_by)
 
     if sort_column is None:
-        raise ValueError("Invalid sort field")
+        raise ValueError("Invalid sort field. Allowed fields: "
+                         "room_number, floor, status, room_type_id")
 
-    if sort_order.lower() == "desc":
+    normalized_sort_order = sort_order.lower()
+
+    if normalized_sort_order == "desc":
         query = query.order_by(sort_column.desc())
-    elif sort_order.lower() == "asc":
+    elif normalized_sort_order == "asc":
         query = query.order_by(sort_column.asc())
     else:
-        raise ValueError("Invalid sort order")
+        raise ValueError(
+            "Invalid sort order. Allowed values: asc, desc"
+        )
 
     # Pagination
     return query.offset(skip).limit(limit).all()

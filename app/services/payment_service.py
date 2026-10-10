@@ -3,7 +3,6 @@ import logging
 
 from datetime import datetime, timezone
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 
@@ -78,9 +77,9 @@ def create_payment(
         )
         db.commit()
         db.refresh(payment)
-    except (IntegrityError, ValueError):
+    except Exception:
         db.rollback()
-        raise ValueError("Unable to create payment and audit log")
+        raise
 
 
     logger.info(
