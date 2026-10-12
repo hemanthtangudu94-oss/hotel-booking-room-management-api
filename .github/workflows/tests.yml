@@ -28,9 +28,11 @@ jobs:
       - name: Run database migrations
         env:
           SECRET_KEY: ci-test-secret-key-at-least-32-characters-long
+          MAIN_ADMIN_USERNAME: ci-main-admin
         run: alembic upgrade head
 
       - name: Run tests
         env:
           SECRET_KEY: ci-test-secret-key-at-least-32-characters-long
+          MAIN_ADMIN_USERNAME: ci-main-admin
         run: pytest -v

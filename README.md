@@ -16,6 +16,7 @@ The application provides interactive API documentation through Swagger UI and Re
 
 ![API Endpoints](screenshots/swagger_endpoints.png)
 
+
 Start the application locally and open:
 
 - **Swagger UI:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
