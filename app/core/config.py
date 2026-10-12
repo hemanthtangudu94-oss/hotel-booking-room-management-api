@@ -6,10 +6,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(min_length=32)
     ALGORITHM: str = Field(default="HS256", pattern="^HS256$")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, gt=0, le=1440)
+    DATABASE_URL: str = "sqlite:///./hotel_booking.db"
+    MAIN_ADMIN_USERNAME: str = Field(min_length=3, max_length=50)
+
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_file_encoding="utf-8"
+        env_file_encoding="utf-8",
+        extra="ignore"
     )
 
 

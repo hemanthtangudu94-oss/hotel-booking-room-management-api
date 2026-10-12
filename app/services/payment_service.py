@@ -122,3 +122,15 @@ def get_payments(
         len(payments)
     )
     return payments
+
+
+def get_payment(db: Session, payment_id: int, user_id: int) -> Payment:
+    payment = db.query(Payment).join(
+        Booking, Payment.booking_id == Booking.id
+    ).filter(
+        Payment.id == payment_id,
+        Booking.user_id == user_id,
+    ).first()
+    if payment is None:
+        raise ValueError("Payment not found")
+    return payment

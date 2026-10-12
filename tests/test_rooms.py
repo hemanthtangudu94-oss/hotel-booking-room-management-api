@@ -401,3 +401,75 @@ def test_get_rooms_invalid_sort_order(client, db):
 
     assert response.status_code == 400
     assert "Invalid sort order" in response.json()["detail"]
+
+
+def test_room_type_crud_and_delete_guard(client, db):
+    headers = get_admin_headers(client, db)
+    listed = client.get("/room-types/", headers=headers)
+    assert listed.status_code == 200
+    assert any(item["name"] == "Deluxe" for item in listed.json())
+
+    room_type_id = listed.json()[0]["id"]
+    fetched = client.get(f"/room-types/{room_type_id}", headers=headers)
+    assert fetched.status_code == 200
+
+    updated = client.patch(
+        f"/room-types/{room_type_id}", headers=headers,
+        json={"description": "Updated description"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["description"] == "Updated description"
+
+    replaced = client.put(
+        f"/room-types/{room_type_id}", headers=headers,
+        json={
+            "name": "Deluxe Updated", "description": "Full update",
+            "capacity": 3, "price_per_night": "4000.00",
+        },
+    )
+    assert replaced.status_code == 200
+    assert replaced.json()["capacity"] == 3
+
+    blocked = client.delete(f"/room-types/{room_type_id}", headers=headers)
+    assert blocked.status_code == 409
+
+
+def test_room_crud_and_delete_guard(client, db):
+    headers = get_admin_headers(client, db)
+    created = client.post(
+        "/rooms/", headers=headers,
+        json={"room_number": "201", "room_type_id": 1, "floor": 2},
+    )
+    assert created.status_code == 201
+    room_id = created.json()["id"]
+
+    fetched = client.get(f"/rooms/{room_id}", headers=headers)
+    assert fetched.status_code == 200
+
+    replaced = client.put(
+        f"/rooms/{room_id}", headers=headers,
+        json={
+            "room_number": "202", "room_type_id": 1,
+            "floor": 3, "status": "MAINTENANCE",
+        },
+    )
+    assert replaced.status_code == 200
+    assert replaced.json()["room_number"] == "202"
+
+    patched = client.patch(
+        f"/rooms/{room_id}", headers=headers, json={"status": "CLEANING"}
+    )
+    assert patched.status_code == 200
+    assert patched.json()["status"] == "CLEANING"
+
+    deleted = client.delete(f"/rooms/{room_id}", headers=headers)
+    assert deleted.status_code == 204
+    assert client.get(f"/rooms/{room_id}", headers=headers).status_code == 404
+
+
+def test_patch_rejects_empty_and_null_room_updates(client, db):
+    headers = get_admin_headers(client, db)
+    assert client.patch("/rooms/1", headers=headers, json={}).status_code == 422
+    assert client.patch(
+        "/rooms/1", headers=headers, json={"status": None}
+    ).status_code == 422

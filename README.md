@@ -26,9 +26,9 @@ Start the application locally and open:
 - User registration and login with JWT authentication
 - Password hashing using Passlib and bcrypt
 - Role-based access control for administrative endpoints
-- Room type creation and management
-- Room creation, listing, filtering, pagination, and sorting
-- Booking creation, listing, and cancellation
+- Room type creation, listing, retrieval, updates, and deletion with in-use safeguards
+- Room creation, listing, retrieval, updates, filtering, pagination, sorting, and deletion with booking-history safeguards
+- Booking creation, listing, retrieval, rescheduling, and cancellation
 - Validation to prevent overlapping confirmed bookings for the same room
 - Payment creation and payment history
 - Decimal-based monetary fields for room prices, booking totals, and payments
@@ -126,11 +126,12 @@ Create a `.env` file in the project root:
 SECRET_KEY=replace_with_a_strong_random_secret
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+MAIN_ADMIN_USERNAME=your_admin_username
 ```
 
 Generate a strong, random secret key for your environment. Keep it private, and never commit `.env` or real credentials to a public repository.
 
-The application uses `SECRET_KEY` for token signing. The other settings have defaults in the application configuration.
+The application uses `SECRET_KEY` for token signing. Set `MAIN_ADMIN_USERNAME` to the username reserved for the account allowed to edit or delete user records. The other settings have defaults in the application configuration.
 
 ### 5. Apply database migrations
 
@@ -154,7 +155,7 @@ Run the complete automated test suite from the project root:
 pytest -v
 ```
 
-**Latest verified test result:** 42 tests passed.
+**Latest verified test result:** 59 tests passed on the isolated test runtime.
 
 The test suite covers authentication, role-based access, room operations, booking operations, payment validation, audit logging, and transaction rollback scenarios.
 
@@ -168,6 +169,7 @@ The test suite covers authentication, role-based access, room operations, bookin
 6. Call protected endpoints using an account with the appropriate permissions.
 
 Administrative endpoints require the `ADMIN` role.
+User management changes require the configured main administrator account. Room types cannot be deleted while rooms use them, and rooms with booking history cannot be deleted. Paid payments are retained as financial history; the API does not provide a refund or payment deletion operation.
 
 ## API Endpoint Overview
 
@@ -176,14 +178,20 @@ Administrative endpoints require the `ADMIN` role.
 | Authentication | `/auth/register` | POST |
 | Authentication | `/auth/login` | POST |
 | Administration | `/admin/test` | GET |
+| Administration | `/admin/users` and `/admin/users/{user_id}` | GET |
+| Administration | `/admin/users/{user_id}` | PUT, PATCH, DELETE |
 | Room types | `/room-types/` | POST |
+| Room types | `/room-types/` and `/room-types/{room_type_id}` | GET |
+| Room types | `/room-types/{room_type_id}` | PUT, PATCH, DELETE |
 | Rooms | `/rooms/` | POST |
 | Rooms | `/rooms/` | GET |
+| Rooms | `/rooms/{room_id}` | GET, PUT, PATCH, DELETE |
 | Bookings | `/bookings/` | POST |
-| Bookings | `/bookings/` | GET |
+| Bookings | `/bookings/` and `/bookings/{booking_id}` | GET |
+| Bookings | `/bookings/{booking_id}` | PUT, PATCH, DELETE (cancels and retains history) |
 | Bookings | `/bookings/{booking_id}/cancel` | PATCH |
 | Payments | `/payments/` | POST |
-| Payments | `/payments/` | GET |
+| Payments | `/payments/` and `/payments/{payment_id}` | GET |
 | Audit logs | `/audit-logs/` | GET |
 
 See Swagger UI for request schemas, query parameters, authentication requirements, and response formats.

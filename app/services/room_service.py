@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.models.room import Room
 from app.models.room_type import RoomType
-from app.schemas.room import RoomCreate
+from app.models.booking import Booking
+from app.schemas.room import RoomCreate, RoomPatch, RoomUpdate
 
 def create_room(
     db: Session,
@@ -98,3 +99,55 @@ def get_rooms(
 
     # Pagination
     return query.offset(skip).limit(limit).all()
+
+
+def get_room(db: Session, room_id: int) -> Room:
+    room = db.get(Room, room_id)
+    if room is None:
+        raise ValueError("Room not found")
+    return room
+
+
+def _apply_room_update(db: Session, room: Room, values: dict) -> Room:
+    if "room_type_id" in values and db.get(RoomType, values["room_type_id"]) is None:
+        raise ValueError("Room type not found")
+    if "room_number" in values:
+        duplicate = db.query(Room).filter(
+            Room.room_number == values["room_number"], Room.id != room.id
+        ).first()
+        if duplicate:
+            raise ValueError("Room number already exists")
+    for key, value in values.items():
+        setattr(room, key, value)
+    try:
+        db.commit()
+        db.refresh(room)
+    except IntegrityError as exc:
+        db.rollback()
+        raise ValueError("Room number already exists") from exc
+    return room
+
+
+def update_room(db: Session, room_id: int, room_data: RoomUpdate) -> Room:
+    room = get_room(db, room_id)
+    return _apply_room_update(db, room, room_data.model_dump())
+
+
+def patch_room(db: Session, room_id: int, room_data: RoomPatch) -> Room:
+    room = get_room(db, room_id)
+    return _apply_room_update(db, room, room_data.model_dump(exclude_unset=True))
+
+
+def delete_room(db: Session, room_id: int) -> None:
+    room = get_room(db, room_id)
+    has_booking_history = db.query(Booking.id).filter(
+        Booking.room_id == room_id
+    ).first()
+    if has_booking_history:
+        raise ValueError("Cannot delete a room with booking history")
+    db.delete(room)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise ValueError("Cannot delete this room because related records exist") from exc

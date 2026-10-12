@@ -483,3 +483,77 @@ def test_cancel_booking_rolls_back_if_audit_fails(client, db):
 
     assert booking is not None
     assert booking.status == "CONFIRMED"
+
+
+def test_booking_retrieval_rescheduling_and_delete_cancellation(client):
+    client.post(
+        "/auth/register",
+        json={
+            "username": "rescheduleuser",
+            "email": "reschedule@example.com",
+            "password": "testpassword",
+            "full_name": "Reschedule User",
+        },
+    )
+    login = client.post(
+        "/auth/login",
+        data={"username": "rescheduleuser", "password": "testpassword"},
+    )
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    created = client.post(
+        "/bookings/", headers=headers,
+        json={"room_id": 1, "check_in": "2030-01-10", "check_out": "2030-01-12"},
+    )
+    assert created.status_code == 201
+    booking_id = created.json()["id"]
+
+    assert client.get(f"/bookings/{booking_id}", headers=headers).status_code == 200
+    patched = client.patch(
+        f"/bookings/{booking_id}", headers=headers,
+        json={"check_out": "2030-01-13"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["check_out"] == "2030-01-13"
+    assert Decimal(patched.json()["total_amount"]) == Decimal("10500.00")
+
+    replaced = client.put(
+        f"/bookings/{booking_id}", headers=headers,
+        json={"room_id": 1, "check_in": "2030-01-11", "check_out": "2030-01-13"},
+    )
+    assert replaced.status_code == 200
+
+    deleted = client.delete(f"/bookings/{booking_id}", headers=headers)
+    assert deleted.status_code == 204
+    assert client.get(f"/bookings/{booking_id}", headers=headers).json()["status"] == "CANCELLED"
+
+
+def test_booking_reschedule_rejects_overlap(client):
+    client.post(
+        "/auth/register",
+        json={
+            "username": "overlapuser",
+            "email": "overlap@example.com",
+            "password": "testpassword",
+            "full_name": "Overlap User",
+        },
+    )
+    login = client.post(
+        "/auth/login",
+        data={"username": "overlapuser", "password": "testpassword"},
+    )
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    first = client.post(
+        "/bookings/", headers=headers,
+        json={"room_id": 1, "check_in": "2031-02-01", "check_out": "2031-02-03"},
+    )
+    second = client.post(
+        "/bookings/", headers=headers,
+        json={"room_id": 1, "check_in": "2031-02-05", "check_out": "2031-02-07"},
+    )
+    assert first.status_code == second.status_code == 201
+    response = client.patch(
+        f"/bookings/{second.json()['id']}", headers=headers,
+        json={"check_in": "2031-02-02", "check_out": "2031-02-04"},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Room is already booked for the selected dates"

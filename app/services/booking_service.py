@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from app.models.booking import Booking
 from app.models.room import Room
 from app.models.room_type import RoomType
-from app.schemas.booking import BookingCreate
+from app.models.payments import Payment
+from app.schemas.booking import BookingCreate, BookingPatch, BookingUpdate
 from app.services.audit_service import create_audit_log
 
 
@@ -129,6 +130,82 @@ def get_bookings(
     )
 
     return bookings
+
+
+def get_booking(db: Session, booking_id: int, user_id: int) -> Booking:
+    booking = db.query(Booking).filter(
+        Booking.id == booking_id,
+        Booking.user_id == user_id,
+    ).first()
+    if booking is None:
+        raise ValueError("Booking not found")
+    return booking
+
+
+def update_booking(
+    db: Session,
+    booking_id: int,
+    user_id: int,
+    booking_data: BookingUpdate | BookingPatch,
+) -> Booking:
+    booking = get_booking(db, booking_id, user_id)
+    if booking.status != "CONFIRMED":
+        raise ValueError("Booking cannot be updated")
+    if db.query(Payment.id).filter(
+        Payment.booking_id == booking_id, Payment.status == "PAID"
+    ).first():
+        raise ValueError("A paid booking cannot be updated")
+
+    values = booking_data.model_dump(exclude_unset=True)
+    room_id = values.get("room_id", booking.room_id)
+    check_in = values.get("check_in", booking.check_in)
+    check_out = values.get("check_out", booking.check_out)
+    if check_out <= check_in:
+        raise ValueError("Check-out date must be after check-in date")
+
+    room = db.get(Room, room_id)
+    if room is None:
+        raise ValueError("Room not found")
+    if room.status != "AVAILABLE":
+        raise ValueError("Room is not available for booking")
+    overlap = db.query(Booking.id).filter(
+        Booking.room_id == room_id,
+        Booking.id != booking_id,
+        Booking.status == "CONFIRMED",
+        Booking.check_in < check_out,
+        Booking.check_out > check_in,
+    ).first()
+    if overlap:
+        raise ValueError("Room is already booked for the selected dates")
+    room_type = db.get(RoomType, room.room_type_id)
+    if room_type is None:
+        raise ValueError("Room type not found")
+
+    old_value = (
+        f"Room: {booking.room_id}, Check-in: {booking.check_in}, "
+        f"Check-out: {booking.check_out}, Total: {booking.total_amount}"
+    )
+    booking.room_id = room_id
+    booking.check_in = check_in
+    booking.check_out = check_out
+    booking.total_amount = Decimal((check_out - check_in).days) * room_type.price_per_night
+    new_value = (
+        f"Room: {booking.room_id}, Check-in: {booking.check_in}, "
+        f"Check-out: {booking.check_out}, Total: {booking.total_amount}"
+    )
+    try:
+        db.flush()
+        create_audit_log(
+            db=db, user_id=user_id, action="UPDATE", entity="Booking",
+            entity_id=booking.id, old_value=old_value, new_value=new_value,
+            commit=False,
+        )
+        db.commit()
+        db.refresh(booking)
+    except Exception:
+        db.rollback()
+        raise
+    return booking
 
 
 def cancel_booking(

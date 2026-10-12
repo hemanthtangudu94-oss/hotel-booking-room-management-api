@@ -333,6 +333,11 @@ def test_get_payments(client):
     assert Decimal(data[0]["amount"]) == Decimal("7000.00")
     assert data[0]["status"] == "PAID"
 
+    payment_id = data[0]["id"]
+    payment_detail = client.get(f"/payments/{payment_id}", headers=headers)
+    assert payment_detail.status_code == 200
+    assert payment_detail.json()["id"] == payment_id
+
 def test_database_prevents_duplicate_paid_payments(client, db):
     from sqlalchemy.exc import IntegrityError
     from app.models.payments import Payment

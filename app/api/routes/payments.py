@@ -5,7 +5,7 @@ from app.core.dependencies import get_current_user
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.payment import PaymentCreate, PaymentResponse
-from app.services.payment_service import create_payment, get_payments
+from app.services.payment_service import create_payment, get_payment, get_payments
 
 
 router = APIRouter(
@@ -52,3 +52,15 @@ def get_payments_endpoint(
         skip,
         limit
     )
+
+
+@router.get("/{payment_id}", response_model=PaymentResponse)
+def get_payment_endpoint(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return get_payment(db, payment_id, current_user.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
