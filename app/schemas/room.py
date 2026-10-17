@@ -1,4 +1,5 @@
 from typing import Literal
+from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class RoomCreate(BaseModel):
@@ -39,3 +40,13 @@ class RoomResponse(BaseModel):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AvailableRoomResponse(BaseModel):
+    id: int
+    room_number: str
+    floor: int
+    status: Literal["AVAILABLE"]
+    room_type_name: str
+    capacity: int
+    price_per_night: Decimal

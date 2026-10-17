@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, has_any_role
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.booking import BookingCreate, BookingPatch, BookingResponse, BookingUpdate
@@ -26,6 +26,11 @@ def create_booking_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    if has_any_role(db, current_user, "EMPLOYEE"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employees cannot create guest bookings from their employee account",
+        )
     try:
         return create_booking(
             db,
@@ -51,7 +56,7 @@ def get_bookings_endpoint(
 ):
     return get_bookings(
         db,
-        current_user.id,
+        None if has_any_role(db, current_user, "EMPLOYEE") else current_user.id,
         skip,
         limit
     )
@@ -64,7 +69,8 @@ def get_booking_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return get_booking(db, booking_id, current_user.id)
+        user_id = None if has_any_role(db, current_user, "EMPLOYEE") else current_user.id
+        return get_booking(db, booking_id, user_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -83,7 +89,8 @@ def replace_booking_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return update_booking(db, booking_id, current_user.id, booking_data)
+        user_id = None if has_any_role(db, current_user, "EMPLOYEE") else current_user.id
+        return update_booking(db, booking_id, user_id, booking_data, actor_id=current_user.id)
     except ValueError as exc:
         raise _booking_update_error(exc) from exc
 
@@ -96,7 +103,8 @@ def patch_booking_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return update_booking(db, booking_id, current_user.id, booking_data)
+        user_id = None if has_any_role(db, current_user, "EMPLOYEE") else current_user.id
+        return update_booking(db, booking_id, user_id, booking_data, actor_id=current_user.id)
     except ValueError as exc:
         raise _booking_update_error(exc) from exc
 
@@ -114,7 +122,8 @@ def cancel_booking_endpoint(
         return cancel_booking(
             db,
             booking_id,
-            current_user.id
+            None if has_any_role(db, current_user, "EMPLOYEE") else current_user.id,
+            actor_id=current_user.id,
         )
 
     except ValueError as e:
@@ -131,7 +140,8 @@ def delete_booking_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        cancel_booking(db, booking_id, current_user.id)
+        user_id = None if has_any_role(db, current_user, "EMPLOYEE") else current_user.id
+        cancel_booking(db, booking_id, user_id, actor_id=current_user.id)
     except ValueError as exc:
         message = str(exc)
         code = 404 if message == "Booking not found" else 409

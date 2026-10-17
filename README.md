@@ -80,11 +80,14 @@ Hotel_Booking_API/
 │   └── versions/
 ├── tests/
 ├── screenshots/
-├── .env
+├── .github/
 ├── .gitignore
 ├── alembic.ini
 ├── requirements.txt
-└── README.md
+├── frontend-requirements.txt
+├── streamlit_app.py
+├── README.md
+└── FRONTEND_README.md
 ```
 
 **Note:** The `.env` file is local configuration and should not be committed to version control. The structure above summarizes the main application directories and files.
@@ -169,7 +172,7 @@ The test suite covers authentication, role-based access, room operations, bookin
 5. In Swagger UI, click **Authorize** and authenticate using the configured OAuth2 password flow.
 6. Call protected endpoints using an account with the appropriate permissions.
 
-Administrative endpoints require the `ADMIN` role.
+Administrative endpoints require the `ADMIN` role. New registrations receive the `USER` role; the configured main administrator can assign either `USER` or `EMPLOYEE` roles. Employees can review and update bookings, view room inventory, and change room operational status. They cannot access payments, room-type administration, user management, or audit logs. Role checks are enforced by the API.
 User management changes require the configured main administrator account. Room types cannot be deleted while rooms use them, and rooms with booking history cannot be deleted. Paid payments are retained as financial history; the API does not provide a refund or payment deletion operation.
 
 ## API Endpoint Overview
@@ -178,14 +181,19 @@ User management changes require the configured main administrator account. Room 
 |---|---|---|
 | Authentication | `/auth/register` | POST |
 | Authentication | `/auth/login` | POST |
+| Authentication | `/auth/me` | GET (current account and roles) |
 | Administration | `/admin/test` | GET |
 | Administration | `/admin/users` and `/admin/users/{user_id}` | GET |
 | Administration | `/admin/users/{user_id}` | PUT, PATCH, DELETE |
+| Administration | `/admin/users/{user_id}/password` | PUT (main administrator resets password; password is stored as a hash) |
+| Administration | `/admin/user-roles` | GET (ADMIN) |
+| Administration | `/admin/users/{user_id}/role` | PUT (main administrator assigns USER or EMPLOYEE) |
 | Room types | `/room-types/` | POST |
 | Room types | `/room-types/` and `/room-types/{room_type_id}` | GET |
 | Room types | `/room-types/{room_type_id}` | PUT, PATCH, DELETE |
 | Rooms | `/rooms/` | POST |
 | Rooms | `/rooms/` | GET |
+| Rooms | `/rooms/available` | GET (authenticated users; returns only rooms marked available) |
 | Rooms | `/rooms/{room_id}` | GET, PUT, PATCH, DELETE |
 | Bookings | `/bookings/` | POST |
 | Bookings | `/bookings/` and `/bookings/{booking_id}` | GET |

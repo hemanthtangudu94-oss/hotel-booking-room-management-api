@@ -104,7 +104,7 @@ def create_booking(
 
 def get_bookings(
         db: Session,
-        user_id: int,
+        user_id: int | None,
         skip: int = 0,
         limit: int =10
 ):
@@ -117,9 +117,10 @@ def get_bookings(
     if limit > 100:
         raise ValueError("Limit cannot exceed 100")
     
-    bookings = db.query(Booking).filter(
-        Booking.user_id == user_id
-    ).order_by(
+    query = db.query(Booking)
+    if user_id is not None:
+        query = query.filter(Booking.user_id == user_id)
+    bookings = query.order_by(
         Booking.created_at.desc()
     ).offset(skip).limit(limit).all()
  
@@ -132,11 +133,11 @@ def get_bookings(
     return bookings
 
 
-def get_booking(db: Session, booking_id: int, user_id: int) -> Booking:
-    booking = db.query(Booking).filter(
-        Booking.id == booking_id,
-        Booking.user_id == user_id,
-    ).first()
+def get_booking(db: Session, booking_id: int, user_id: int | None) -> Booking:
+    query = db.query(Booking).filter(Booking.id == booking_id)
+    if user_id is not None:
+        query = query.filter(Booking.user_id == user_id)
+    booking = query.first()
     if booking is None:
         raise ValueError("Booking not found")
     return booking
@@ -145,8 +146,9 @@ def get_booking(db: Session, booking_id: int, user_id: int) -> Booking:
 def update_booking(
     db: Session,
     booking_id: int,
-    user_id: int,
+    user_id: int | None,
     booking_data: BookingUpdate | BookingPatch,
+    actor_id: int | None = None,
 ) -> Booking:
     booking = get_booking(db, booking_id, user_id)
     if booking.status != "CONFIRMED":
@@ -196,7 +198,7 @@ def update_booking(
     try:
         db.flush()
         create_audit_log(
-            db=db, user_id=user_id, action="UPDATE", entity="Booking",
+            db=db, user_id=actor_id if actor_id is not None else user_id, action="UPDATE", entity="Booking",
             entity_id=booking.id, old_value=old_value, new_value=new_value,
             commit=False,
         )
@@ -211,15 +213,10 @@ def update_booking(
 def cancel_booking(
         db: Session,
         booking_id: int,
-        user_id: int
+        user_id: int | None,
+        actor_id: int | None = None,
 ):
-    booking = db.query(Booking).filter(
-        Booking.id == booking_id,
-        Booking.user_id == user_id
-    ).first()
-
-    if booking is None:
-        raise ValueError("Booking not found")
+    booking = get_booking(db, booking_id, user_id)
 
     if booking.status != "CONFIRMED":
         raise ValueError("Booking cannot be cancelled")
@@ -233,7 +230,7 @@ def cancel_booking(
         db.flush()
         create_audit_log(
             db=db,
-            user_id=user_id,
+            user_id=actor_id if actor_id is not None else user_id,
             action="CANCEL",
             entity="Booking",
             entity_id=booking.id,

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, has_any_role
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.payment import PaymentCreate, PaymentResponse
@@ -23,6 +23,8 @@ def create_payment_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    if has_any_role(db, current_user, "EMPLOYEE"):
+        raise HTTPException(status_code=403, detail="Payments are not available to employee accounts")
     try:
         return create_payment(
             db,
@@ -46,6 +48,8 @@ def get_payments_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    if has_any_role(db, current_user, "EMPLOYEE"):
+        raise HTTPException(status_code=403, detail="Payments are not available to employee accounts")
     return get_payments(
         db,
         current_user.id,
@@ -60,6 +64,8 @@ def get_payment_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if has_any_role(db, current_user, "EMPLOYEE"):
+        raise HTTPException(status_code=403, detail="Payments are not available to employee accounts")
     try:
         return get_payment(db, payment_id, current_user.id)
     except ValueError as exc:

@@ -78,6 +78,34 @@ def require_role(required_role: str):
         return current_user
     return role_checker
 
+
+def has_any_role(db: Session, user: User, *role_names: str) -> bool:
+    compatible_names = set(role_names)
+    if "EMPLOYEE" in compatible_names:
+        compatible_names.add("RECEPTIONIST")
+    if "USER" in compatible_names:
+        compatible_names.add("CUSTOMER")
+    return db.query(Role.id).join(
+        UserRole, Role.id == UserRole.role_id
+    ).filter(
+        UserRole.user_id == user.id,
+        Role.name.in_(compatible_names),
+    ).first() is not None
+
+
+def require_any_role(*role_names: str):
+    def role_checker(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        if not has_any_role(db, current_user, *role_names):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to perform this action",
+            )
+        return current_user
+    return role_checker
+
 def require_main_admin(
         current_user: User = Depends(get_current_user)
 ) -> User:

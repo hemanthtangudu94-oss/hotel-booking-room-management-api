@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 class UserCreate(BaseModel):
@@ -26,6 +27,16 @@ class UserPatch(BaseModel):
         if not changes or any(value is None for value in changes.values()):
             raise ValueError("Provide at least one non-null field to update")
         return self
+
+
+class AdminPasswordReset(BaseModel):
+    password: str = Field(min_length=8, max_length=125)
+
+
+class AdminRoleAssignment(BaseModel):
+    role: Literal["USER", "EMPLOYEE"]
+
+    model_config = ConfigDict(extra="forbid")
 
 class UserResponse(BaseModel):
     id: int

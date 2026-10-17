@@ -3,9 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.models.user import User
+from app.models.roles import Role
 from app.models.user_role import UserRole
 from app.models.booking import Booking
 from app.schemas.user import UserCreate, UserPatch, UserUpdate
+from app.services.audit_service import create_audit_log
 
 
 def create_user(db: Session, user_data: UserCreate) -> User:
@@ -37,6 +39,13 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     db.add(user)
 
     try:
+        db.flush()
+        user_role = db.query(Role).filter(Role.name == "USER").first()
+        if user_role is None:
+            user_role = Role(name="USER")
+            db.add(user_role)
+            db.flush()
+        db.add(UserRole(user_id=user.id, role_id=user_role.id))
         db.commit()
         db.refresh(user)
     except IntegrityError:
@@ -105,6 +114,29 @@ def patch_user(db: Session, user_id: int, user_data: UserPatch) -> User:
     if user is None:
         raise ValueError("User not found")
     return _apply_user_update(db, user, user_data.model_dump(exclude_unset=True))
+
+
+def reset_user_password(db: Session, user_id: int, admin_id: int, password: str) -> None:
+    user = db.get(User, user_id)
+    if user is None:
+        raise ValueError("User not found")
+
+    user.password_hash = hash_password(password)
+    try:
+        db.flush()
+        create_audit_log(
+            db=db,
+            user_id=admin_id,
+            action="PASSWORD_RESET",
+            entity="User",
+            entity_id=user.id,
+            new_value="Password reset by administrator",
+            commit=False,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def _apply_user_update(db: Session, user: User, values: dict) -> User:
