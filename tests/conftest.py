@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import pytest
 
 from sqlalchemy import create_engine
@@ -9,6 +11,15 @@ from app.models.room_type import RoomType
 from app.models.room import Room
 from app.db.database import Base, get_db
 from app.main import app
+
+
+@asynccontextmanager
+async def test_lifespan(_app):
+    """Keep API startup bootstrap away from the developer's local database."""
+    yield
+
+
+app.router.lifespan_context = test_lifespan
 
 
 TEST_DATABASE_URL = "sqlite:///./test_hotel_booking.db"

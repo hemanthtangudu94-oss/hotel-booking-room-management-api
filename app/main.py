@@ -1,4 +1,9 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
+from app.db.database import SessionLocal
+from app.services.bootstrap_service import bootstrap_main_admin
 
 
 #connecting core to main
@@ -19,10 +24,21 @@ setup_logging()
 
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    db = SessionLocal()
+    try:
+        bootstrap_main_admin(db)
+    finally:
+        db.close()
+    yield
+
+
 app = FastAPI(
     title="Hotel Booking & Room Management API",
     description="Production-grade hotel booking and room management backend",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.include_router(auth_router)

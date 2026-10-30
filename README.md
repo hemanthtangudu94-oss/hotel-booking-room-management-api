@@ -130,12 +130,15 @@ Create a `.env` file in the project root:
 SECRET_KEY=replace_with_a_strong_random_secret
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-MAIN_ADMIN_USERNAME=your_admin_username
+MAIN_ADMIN_USERNAME=admin
+MAIN_ADMIN_PASSWORD=replace_with_a_strong_password_at_least_12_characters
+MAIN_ADMIN_EMAIL=admin@example.com
+MAIN_ADMIN_FULL_NAME=Hotel Administrator
 ```
 
-Generate a strong, random secret key for your environment. Keep it private, and never commit `.env` or real credentials to a public repository.
+Generate a strong, random secret key and choose a strong administrator password for your environment. Keep both private, and never commit `.env` or real credentials to a public repository.
 
-The application uses `SECRET_KEY` for token signing. Set `MAIN_ADMIN_USERNAME` to the username reserved for the account allowed to edit or delete user records. The other settings have defaults in the application configuration.
+On API startup, the application creates the configured main administrator automatically if the account does not exist. Set `MAIN_ADMIN_PASSWORD` to a strong password of at least 12 characters; if it is missing, startup logs a warning and skips creating a new admin. If the configured username already exists, startup ensures it has the `ADMIN` role without changing its password. The main administrator username is reserved and cannot be registered as a guest account. The automated tests disable this startup bootstrap so they never modify your local database.
 
 ### 5. Apply database migrations
 

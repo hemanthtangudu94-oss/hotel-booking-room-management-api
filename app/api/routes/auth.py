@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.dependencies import get_current_user
 from app.core.security import create_access_token, verify_password
 from app.schemas.auth import TokenResponse
@@ -43,6 +44,12 @@ def register_user(
     user_data: UserCreate,
     db: Session = Depends(get_db)
 ):
+
+    if user_data.username.casefold() == settings.MAIN_ADMIN_USERNAME.casefold():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This username is reserved for the main administrator.",
+        )
 
     try:
         return create_user(db, user_data)
