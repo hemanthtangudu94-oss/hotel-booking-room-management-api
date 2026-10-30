@@ -2,6 +2,27 @@ from app.models.user import User
 from app.services.role_service import assign_role
 
 
+def register_test_main_admin(client):
+    """Create the test account before reserving its username as the main admin."""
+    from app.core.config import settings
+
+    configured_username = settings.MAIN_ADMIN_USERNAME
+    settings.MAIN_ADMIN_USERNAME = "__temporary_test_reserved_name__"
+    try:
+        response = client.post(
+            "/auth/register",
+            json={
+                "username": "mainadmin",
+                "email": "mainadmin@example.com",
+                "password": "testpassword",
+                "full_name": "Main Admin",
+            },
+        )
+    finally:
+        settings.MAIN_ADMIN_USERNAME = configured_username
+    return response
+
+
 def test_admin_without_token(client):
     response = client.get("/admin/test")
 
@@ -227,15 +248,7 @@ def test_admin_list_users_with_role(client, db):
 
 def test_main_admin_delete_user(client, db):
     # Register the main admin
-    client.post(
-        "/auth/register",
-        json={
-            "username": "mainadmin",
-            "email": "mainadmin@example.com",
-            "password": "testpassword",
-            "full_name": "Main Admin"
-        }
-    )
+    register_test_main_admin(client)
 
     admin = db.query(User).filter(
         User.username == "mainadmin"
@@ -295,15 +308,7 @@ def test_delete_user_not_found(client):
 
     try:
         # Register the main admin
-        client.post(
-            "/auth/register",
-            json={
-                "username": "mainadmin",
-                "email": "mainadmin@example.com",
-                "password": "testpassword",
-                "full_name": "Main Admin"
-            }
-        )
+        register_test_main_admin(client)
 
         # Login as the main admin
         login_response = client.post(
@@ -338,15 +343,7 @@ def test_other_admin_cannot_delete_user(client, db):
 
     try:
         # Register the designated main admin account
-        client.post(
-            "/auth/register",
-            json={
-                "username": "mainadmin",
-                "email": "mainadmin@example.com",
-                "password": "testpassword",
-                "full_name": "Main Admin"
-            }
-        )
+        register_test_main_admin(client)
 
         # Register another administrator
         client.post(
@@ -421,15 +418,7 @@ def test_main_admin_cannot_delete_user_with_booking(client, db):
 
     try:
         # Register the main admin
-        client.post(
-            "/auth/register",
-            json={
-                "username": "mainadmin",
-                "email": "mainadmin@example.com",
-                "password": "testpassword",
-                "full_name": "Main Admin"
-            }
-        )
+        register_test_main_admin(client)
 
         # Register the user who will have a booking
         client.post(
@@ -509,15 +498,7 @@ def test_main_admin_update_user(client, db):
 
     try:
         # Register main admin
-        client.post(
-            "/auth/register",
-            json={
-                "username": "mainadmin",
-                "email": "mainadmin@example.com",
-                "password": "testpassword",
-                "full_name": "Main Admin"
-            }
-        )
+        register_test_main_admin(client)
 
         # Register target user
         client.post(
@@ -574,15 +555,7 @@ def test_update_user_not_found(client):
     settings.MAIN_ADMIN_USERNAME = "mainadmin"
 
     try:
-        client.post(
-            "/auth/register",
-            json={
-                "username": "mainadmin",
-                "email": "mainadmin@example.com",
-                "password": "testpassword",
-                "full_name": "Main Admin"
-            }
-        )
+        register_test_main_admin(client)
 
         login = client.post(
             "/auth/login",
@@ -617,15 +590,7 @@ def test_update_user_duplicate_username(client, db):
     settings.MAIN_ADMIN_USERNAME = "mainadmin"
 
     try:
-        client.post(
-            "/auth/register",
-            json={
-                "username": "mainadmin",
-                "email": "mainadmin@example.com",
-                "password": "testpassword",
-                "full_name": "Main Admin"
-            }
-        )
+        register_test_main_admin(client)
 
         client.post(
             "/auth/register",
@@ -686,15 +651,7 @@ def test_update_user_duplicate_email(client, db):
     settings.MAIN_ADMIN_USERNAME = "mainadmin"
 
     try:
-        client.post(
-            "/auth/register",
-            json={
-                "username": "mainadmin",
-                "email": "mainadmin@example.com",
-                "password": "testpassword",
-                "full_name": "Main Admin"
-            }
-        )
+        register_test_main_admin(client)
 
         client.post(
             "/auth/register",
@@ -754,18 +711,16 @@ def test_main_admin_patch_user(client, db):
     original_username = settings.MAIN_ADMIN_USERNAME
     settings.MAIN_ADMIN_USERNAME = "mainadmin"
     try:
-        for username, email in (
-            ("mainadmin", "mainadmin@example.com"),
-            ("patchtarget", "patchtarget@example.com"),
-        ):
-            response = client.post(
-                "/auth/register",
-                json={
-                    "username": username, "email": email,
-                    "password": "testpassword", "full_name": username,
-                },
-            )
-            assert response.status_code == 201
+        response = register_test_main_admin(client)
+        assert response.status_code == 201
+        response = client.post(
+            "/auth/register",
+            json={
+                "username": "patchtarget", "email": "patchtarget@example.com",
+                "password": "testpassword", "full_name": "patchtarget",
+            },
+        )
+        assert response.status_code == 201
 
         login = client.post(
             "/auth/login", data={"username": "mainadmin", "password": "testpassword"}
